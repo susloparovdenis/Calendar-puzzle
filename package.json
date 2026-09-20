@@ -1,0 +1,24 @@
+{
+  "name": "calendar-puzzle",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Solver and UI for the wooden calendar puzzle: pick a date, get the tiling.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "preact": "^10.24.3"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.9.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.4"
+  }
+}
