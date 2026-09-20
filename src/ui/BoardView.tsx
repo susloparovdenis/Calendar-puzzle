@@ -51,6 +51,12 @@ export function BoardView(props: BoardViewProps): preact.JSX.Element {
   const covered = new Set(
     piecesVisible ? (props.solution ?? []).flatMap((placed) => placed.cells) : [],
   );
+  // Days the chosen month never reaches are engraved faintly, like 31 in September.
+  const faded = new Set(
+    PLAYABLE_CELLS.filter((cell) => cell.kind === 'day' && cell.value > props.maxDay).map(
+      (cell) => cell.index,
+    ),
+  );
 
   return (
     <svg
@@ -97,7 +103,7 @@ export function BoardView(props: BoardViewProps): preact.JSX.Element {
           stroke-width={2.5}
         />
 
-        <Engravings cells={PLAYABLE_CELLS} variant="panel" />
+        <Engravings cells={PLAYABLE_CELLS} variant="panel" faded={faded} />
         <AnswerHighlights answer={answer} />
 
         {piecesVisible ? (
@@ -112,6 +118,7 @@ export function BoardView(props: BoardViewProps): preact.JSX.Element {
           <Engravings
             cells={PLAYABLE_CELLS.filter((cell) => covered.has(cell.index))}
             variant="ghost"
+            faded={faded}
           />
         ) : null}
 
@@ -158,11 +165,14 @@ export function BoardView(props: BoardViewProps): preact.JSX.Element {
 function Engravings({
   cells,
   variant,
+  faded,
 }: {
   readonly cells: readonly BoardCell[];
   readonly variant: 'panel' | 'ghost';
+  readonly faded: ReadonlySet<number>;
 }): preact.JSX.Element {
   const ghost = variant === 'ghost';
+  const baseOpacity = ghost ? 0.3 : 1;
   return (
     <g
       class={`engraving ${ghost ? 'engraving-ghost' : ''}`}
@@ -172,13 +182,13 @@ function Engravings({
       {cells.map((cell) => (
         <text
           key={cell.index}
-          class={`engraving-${cell.kind}`}
+          class={`engraving-${cell.kind} ${faded.has(cell.index) ? 'engraving-faded' : ''}`}
           x={centerX(cell.col)}
           y={centerY(cell.row)}
           text-anchor="middle"
           dominant-baseline="central"
           fill={ghost ? '#42230b' : '#7b4c22'}
-          fill-opacity={ghost ? 0.3 : 1}
+          fill-opacity={faded.has(cell.index) ? baseOpacity * 0.35 : baseOpacity}
           // Long labels are squeezed to the cell so they fit whatever font loads.
           textLength={cell.label.length >= 3 ? LABEL_WIDTH : undefined}
           lengthAdjust={cell.label.length >= 3 ? 'spacingAndGlyphs' : undefined}

@@ -135,3 +135,16 @@ describe('BoardView', () => {
     expect(container.querySelectorAll('.engraving-ghost')).toHaveLength(0);
   });
 });
+
+describe('BoardView engraving of unreachable days', () => {
+  it('fades the day numbers the month never reaches', () => {
+    const { container } = renderBoard({ month: 2, day: 1, maxDay: 28, showPieces: false });
+    const faded = [...container.querySelectorAll('.engraving-faded')].map((n) => n.textContent);
+    expect(faded.sort()).toEqual(['29', '30', '31']);
+  });
+
+  it('leaves every day at full strength in a 31-day month', () => {
+    const { container } = renderBoard({ month: 1, day: 1, maxDay: 31, showPieces: false });
+    expect(container.querySelectorAll('.engraving-faded')).toHaveLength(0);
+  });
+});
