@@ -4,7 +4,9 @@ import { clampDay, daysInMonth, isMonth, puzzleDateFor, type PuzzleDate } from '
 import { targetCells } from '../core/solver.ts';
 import { BoardView } from './BoardView.tsx';
 import { Controls } from './Controls.tsx';
+import { HowToSolve } from './HowToSolve.tsx';
 import { PieceLegend } from './PieceLegend.tsx';
+import { SolutionChart } from './SolutionChart.tsx';
 import { MAX_SOLUTIONS, useSolutions } from './useSolutions.ts';
 
 interface Selection {
@@ -80,8 +82,9 @@ export function App(): preact.JSX.Element {
         </p>
       </header>
 
-      <main class="layout">
-        <div class="board-stage">
+      <main>
+        <div class="layout">
+          <div class="board-stage">
           <BoardView
             solution={solution}
             answerCells={answerCells}
@@ -97,7 +100,7 @@ export function App(): preact.JSX.Element {
           <p class="board-hint">Месяц и число можно выбрать прямо на доске</p>
         </div>
 
-        <aside class="sidebar">
+          <aside class="sidebar">
           <Controls
             year={selection.year}
             month={selection.month}
@@ -202,7 +205,17 @@ export function App(): preact.JSX.Element {
           </section>
 
           <PieceLegend />
-        </aside>
+          </aside>
+        </div>
+
+        <SolutionChart
+          year={selection.year}
+          month={selection.month}
+          day={selection.day}
+          onPickDate={(year, month, day) => change({ year, month, day })}
+        />
+
+        <HowToSolve />
       </main>
 
       <footer class="colophon">

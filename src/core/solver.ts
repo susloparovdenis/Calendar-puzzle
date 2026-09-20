@@ -11,6 +11,11 @@
  *    connected region is checked against the sizes the unused pieces can still
  *    add up to (a region of 3, 6, 7 … cells can never be filled by 4- and
  *    5-cell pieces, so the branch is abandoned immediately).
+ *
+ * `Search` holds the mutable state. Two walkers drive it: a generator, for the
+ * UI, which can be paused between solutions, and a callback walker, which never
+ * materialises a solution it is not asked for and so counts several times
+ * faster. Their agreement is covered by tests.
  */
 
 import { CELL_COUNT, COLS, ROWS, cellAt, dayCell, monthCell, weekdayCell } from './board.ts';
@@ -29,6 +34,8 @@ export interface SolveOptions {
   /** Stop after visiting this many search nodes. Guards against pathological input. */
   readonly maxNodes?: number;
 }
+
+const DEFAULT_MAX_NODES = 20_000_000;
 
 interface Placement {
   readonly pieceIndex: number;
@@ -143,101 +150,109 @@ export class SearchLimitExceeded extends Error {
   }
 }
 
-/**
- * Lazily enumerates every tiling for a date. Solutions are produced in a stable
- * order, so the same date always yields the same sequence.
- */
-export function* solutions(date: PuzzleDate, options: SolveOptions = {}): Generator<Solution> {
-  const maxNodes = options.maxNodes ?? 20_000_000;
+/** Mutable state of one run of the search over one date. */
+class Search {
+  /** 1 = unavailable (inlay, chosen date cell, or already covered), 0 = still open. */
+  private readonly occupied = new Uint8Array(CELL_COUNT).fill(1);
+  private readonly used = new Uint8Array(PIECES.length);
+  private readonly stack: Placement[] = [];
+  private readonly visited = new Int32Array(CELL_COUNT);
+  private readonly queue = new Int32Array(CELL_COUNT);
+  private stamp = 0;
+  private nodes = 0;
+  private remainingFours = TETROMINO_COUNT;
+  private remainingFives = PENTOMINO_COUNT;
 
-  // 1 = unavailable (inlay, chosen date cell, or already covered), 0 = still open.
-  const occupied = new Uint8Array(CELL_COUNT).fill(1);
-  for (let index = 0; index < CELL_COUNT; index += 1) {
-    if (cellAt(Math.floor(index / COLS), index % COLS) !== null) occupied[index] = 0;
+  constructor(
+    date: PuzzleDate,
+    private readonly maxNodes: number,
+  ) {
+    for (let index = 0; index < CELL_COUNT; index += 1) {
+      if (cellAt(Math.floor(index / COLS), index % COLS) !== null) this.occupied[index] = 0;
+    }
+    for (const index of targetCells(date)) this.occupied[index] = 1;
   }
-  for (const index of targetCells(date)) occupied[index] = 1;
 
-  const used = new Uint8Array(PIECES.length);
-  const stack: Placement[] = [];
-  const visited = new Int32Array(CELL_COUNT);
-  const queue = new Int32Array(CELL_COUNT);
-  let stamp = 0;
-  let nodes = 0;
-  let remainingFours = TETROMINO_COUNT;
-  let remainingFives = PENTOMINO_COUNT;
+  /** Counts a visited node and enforces the search budget. */
+  tick(): void {
+    this.nodes += 1;
+    if (this.nodes > this.maxNodes) throw new SearchLimitExceeded(this.nodes);
+  }
 
-  /** True when every connected empty region has a size the unused pieces can tile. */
-  const regionsAreFillable = (): boolean => {
-    stamp += 1;
-    for (let start = 0; start < CELL_COUNT; start += 1) {
-      if (occupied[start] === 1 || visited[start] === stamp) continue;
+  /** Lowest still-open cell at or after `from`, or `CELL_COUNT` when the board is full. */
+  firstOpen(from: number): number {
+    let cell = from;
+    while (cell < CELL_COUNT && this.occupied[cell] === 1) cell += 1;
+    return cell;
+  }
+
+  candidates(cell: number): readonly Placement[] {
+    return PLACEMENTS_BY_MIN_CELL[cell] ?? [];
+  }
+
+  fits(placement: Placement): boolean {
+    if (this.used[placement.pieceIndex] === 1) return false;
+    for (const index of placement.cells) {
+      if (this.occupied[index] === 1) return false;
+    }
+    return true;
+  }
+
+  place(placement: Placement): void {
+    for (const index of placement.cells) this.occupied[index] = 1;
+    this.used[placement.pieceIndex] = 1;
+    this.stack.push(placement);
+    if (placement.cells.length === 4) this.remainingFours -= 1;
+    else this.remainingFives -= 1;
+  }
+
+  undo(placement: Placement): void {
+    if (placement.cells.length === 4) this.remainingFours += 1;
+    else this.remainingFives += 1;
+    this.stack.pop();
+    this.used[placement.pieceIndex] = 0;
+    for (const index of placement.cells) this.occupied[index] = 0;
+  }
+
+  /**
+   * True when every connected empty region has a size the unused pieces can
+   * tile. Cells below `from` are known to be covered, so the scan starts there.
+   */
+  regionsAreFillable(from: number): boolean {
+    this.stamp += 1;
+    for (let start = from; start < CELL_COUNT; start += 1) {
+      if (this.occupied[start] === 1 || this.visited[start] === this.stamp) continue;
       let head = 0;
       let tail = 0;
-      queue[tail] = start;
+      this.queue[tail] = start;
       tail += 1;
-      visited[start] = stamp;
+      this.visited[start] = this.stamp;
       let area = 0;
       while (head < tail) {
-        const cell = queue[head];
+        const cell = this.queue[head];
         head += 1;
         if (cell === undefined) continue;
         area += 1;
         for (const neighbour of NEIGHBOURS[cell] ?? []) {
-          if (occupied[neighbour] === 0 && visited[neighbour] !== stamp) {
-            visited[neighbour] = stamp;
-            queue[tail] = neighbour;
+          if (this.occupied[neighbour] === 0 && this.visited[neighbour] !== this.stamp) {
+            this.visited[neighbour] = this.stamp;
+            this.queue[tail] = neighbour;
             tail += 1;
           }
         }
       }
-      if (!isReachable(area, remainingFours, remainingFives)) return false;
+      if (!isReachable(area, this.remainingFours, this.remainingFives)) return false;
     }
     return true;
-  };
-
-  function* search(from: number): Generator<Solution> {
-    nodes += 1;
-    if (nodes > maxNodes) throw new SearchLimitExceeded(nodes);
-
-    let cell = from;
-    while (cell < CELL_COUNT && occupied[cell] === 1) cell += 1;
-    if (cell === CELL_COUNT) {
-      yield stack.map((placement) => ({
-        pieceId: pieceIdAt(placement.pieceIndex),
-        cells: [...placement.cells],
-      }));
-      return;
-    }
-
-    for (const placement of PLACEMENTS_BY_MIN_CELL[cell] ?? []) {
-      if (used[placement.pieceIndex] === 1) continue;
-      let fits = true;
-      for (const index of placement.cells) {
-        if (occupied[index] === 1) {
-          fits = false;
-          break;
-        }
-      }
-      if (!fits) continue;
-
-      const size = placement.cells.length;
-      for (const index of placement.cells) occupied[index] = 1;
-      used[placement.pieceIndex] = 1;
-      stack.push(placement);
-      if (size === 4) remainingFours -= 1;
-      else remainingFives -= 1;
-
-      if (regionsAreFillable()) yield* search(cell + 1);
-
-      if (size === 4) remainingFours += 1;
-      else remainingFives += 1;
-      stack.pop();
-      used[placement.pieceIndex] = 0;
-      for (const index of placement.cells) occupied[index] = 0;
-    }
   }
 
-  yield* search(0);
+  /** Copies the pieces placed so far into a plain, immutable solution. */
+  snapshot(): Solution {
+    return this.stack.map((placement) => ({
+      pieceId: pieceIdAt(placement.pieceIndex),
+      cells: [...placement.cells],
+    }));
+  }
 }
 
 function pieceIdAt(index: number): PieceId {
@@ -246,10 +261,79 @@ function pieceIdAt(index: number): PieceId {
   return piece.id;
 }
 
+/**
+ * Lazily enumerates every tiling for a date. Solutions are produced in a stable
+ * order, so the same date always yields the same sequence.
+ */
+export function* solutions(date: PuzzleDate, options: SolveOptions = {}): Generator<Solution> {
+  yield* walk(new Search(date, options.maxNodes ?? DEFAULT_MAX_NODES), 0);
+}
+
+function* walk(search: Search, from: number): Generator<Solution> {
+  search.tick();
+
+  const cell = search.firstOpen(from);
+  if (cell === CELL_COUNT) {
+    yield search.snapshot();
+    return;
+  }
+
+  for (const placement of search.candidates(cell)) {
+    if (!search.fits(placement)) continue;
+    search.place(placement);
+    if (search.regionsAreFillable(cell)) yield* walk(search, cell + 1);
+    search.undo(placement);
+  }
+}
+
+/**
+ * Walks every tiling for a date, calling `visit` for each one. `visit` receives
+ * a thunk rather than a solution, so a caller that only counts never pays for
+ * building one; returning `false` stops the walk.
+ *
+ * This is the fast path — it avoids the generator machinery entirely.
+ */
+export function forEachSolution(
+  date: PuzzleDate,
+  visit: (snapshot: () => Solution) => boolean,
+  options: SolveOptions = {},
+): void {
+  const search = new Search(date, options.maxNodes ?? DEFAULT_MAX_NODES);
+  descend(search, 0, visit);
+}
+
+function descend(
+  search: Search,
+  from: number,
+  visit: (snapshot: () => Solution) => boolean,
+): boolean {
+  search.tick();
+
+  const cell = search.firstOpen(from);
+  if (cell === CELL_COUNT) return visit(() => search.snapshot());
+
+  for (const placement of search.candidates(cell)) {
+    if (!search.fits(placement)) continue;
+    search.place(placement);
+    const keepGoing = search.regionsAreFillable(cell) ? descend(search, cell + 1, visit) : true;
+    search.undo(placement);
+    if (!keepGoing) return false;
+  }
+  return true;
+}
+
 /** The first solution for a date, or `null` if there is none. */
 export function solveFirst(date: PuzzleDate, options: SolveOptions = {}): Solution | null {
-  for (const solution of solutions(date, options)) return solution;
-  return null;
+  let found: Solution | null = null;
+  forEachSolution(
+    date,
+    (snapshot) => {
+      found = snapshot();
+      return false;
+    },
+    options,
+  );
+  return found;
 }
 
 /** Counts solutions, stopping once `limit` have been found. */
@@ -258,11 +342,16 @@ export function countSolutions(
   limit = Number.POSITIVE_INFINITY,
   options: SolveOptions = {},
 ): number {
+  if (limit <= 0) return 0;
   let count = 0;
-  for (const _solution of solutions(date, options)) {
-    count += 1;
-    if (count >= limit) break;
-  }
+  forEachSolution(
+    date,
+    () => {
+      count += 1;
+      return count < limit;
+    },
+    options,
+  );
   return count;
 }
 

@@ -596,3 +596,478 @@ button.primary:hover:not(:disabled) {
   line-height: 1.6;
   color: rgba(189, 164, 134, 0.7);
 }
+
+/* ---------- solution chart ----------
+   One series, so one hue for every bar. The three steps below are a validated
+   single-hue ordinal ramp on this surface (monotone lightness, gaps >= 0.06 L,
+   light end 5.0:1 against the card): recessive, base, selected. */
+
+.chart-card {
+  --bar: #b8823c;
+  --bar-selected: #e0a45a;
+  --bar-recessive: #8a5f2b;
+  --plot-height: 190px;
+
+  margin-top: 26px;
+  background: var(--surface);
+  border: 1px solid var(--surface-line);
+  border-radius: var(--radius);
+  padding: 20px 22px 18px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.chart-titles h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.82rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 6px;
+}
+
+.chart-sub {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--ink-dim);
+}
+
+.chart-nav {
+  display: flex;
+  gap: 6px;
+}
+
+.chart-nav button {
+  min-width: 38px;
+  padding: 7px 10px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.chart-readout {
+  margin: 14px 0 0;
+  min-height: 1.9rem;
+  display: flex;
+  align-items: baseline;
+  /* Flex strips the text's own leading space, so the gap supplies it. */
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chart-readout strong {
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.chart-readout span {
+  font-size: 0.9rem;
+  color: var(--ink-dim);
+}
+
+.chart-readout-empty {
+  font-size: 0.9rem;
+  color: rgba(189, 164, 134, 0.6);
+}
+
+.chart-body {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  /* Room above for a full-height bar's label, and below for the x-axis band. */
+  margin-top: 20px;
+  padding-bottom: 20px;
+}
+
+/* Axis ticks align vertically, so tabular figures are right here. */
+.chart-yaxis {
+  position: relative;
+  flex: 0 0 auto;
+  width: 3.4em;
+  height: var(--plot-height);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(189, 164, 134, 0.75);
+}
+
+.chart-yaxis span {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  white-space: nowrap;
+}
+
+.chart-plot {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--plot-height);
+}
+
+.chart-gridlines span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(240, 214, 180, 0.11);
+}
+
+.chart-gridlines span:first-child {
+  background: rgba(240, 214, 180, 0.24);
+}
+
+.chart-bands {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.chart-band {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+}
+
+.chart-band > button {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.chart-band > button:hover:not(:disabled) {
+  background: none;
+  border: none;
+}
+
+.chart-band > button:active:not(:disabled) {
+  transform: none;
+}
+
+.chart-band > button:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.chart-band > button:focus-visible .chart-bar {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 4px rounded data-end, square where it meets the baseline; capped at 24px so
+   a wide band keeps air around the mark rather than filling the slot. */
+.chart-bar {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 24px;
+  border-radius: 4px 4px 0 0;
+  background: var(--bar);
+  transition: background 120ms ease, filter 120ms ease;
+}
+
+.chart-band.is-hovered .chart-bar {
+  filter: brightness(1.22);
+}
+
+.chart-band.is-selected .chart-bar {
+  background: var(--bar-selected);
+}
+
+/* Sits above the bar's cap without stealing height from it. */
+.chart-value {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.chart-tick {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(189, 164, 134, 0.7);
+  pointer-events: none;
+}
+
+.chart-band.is-selected .chart-tick {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.chart-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  background: #160c05;
+  border: 1px solid var(--surface-line);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.chart-tip strong {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.chart-tip span {
+  font-size: 0.72rem;
+  color: var(--ink-dim);
+}
+
+.chart-footnote {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: rgba(189, 164, 134, 0.75);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 620px) {
+  .chart-card {
+    --plot-height: 150px;
+    padding: 16px 14px 14px;
+  }
+
+  .chart-yaxis {
+    width: 2.8em;
+  }
+
+  .chart-bands {
+    gap: 1px;
+  }
+
+  .chart-value {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-bar {
+    transition: none;
+  }
+}
+
+/* ---------- how to solve ---------- */
+
+.howto {
+  margin-top: 26px;
+  background: var(--surface);
+  border: 1px solid var(--surface-line);
+  border-radius: var(--radius);
+  padding: 26px clamp(18px, 3vw, 34px) 28px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.howto-head h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.82rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 10px;
+}
+
+.howto-head p {
+  margin: 0;
+  max-width: 68ch;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--ink-dim);
+}
+
+.howto-steps {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 22px;
+}
+
+.howto-steps > li {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.howto-num {
+  flex: 0 0 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(224, 164, 90, 0.14);
+  border: 1px solid var(--surface-line);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--accent);
+}
+
+.howto-steps h3 {
+  margin: 6px 0 6px;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.3;
+}
+
+.howto-steps p {
+  margin: 0 0 8px;
+  max-width: 68ch;
+  font-size: 0.93rem;
+  line-height: 1.62;
+  color: var(--ink-dim);
+}
+
+.howto-steps p:last-child {
+  margin-bottom: 0;
+}
+
+.howto-pieces {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px 18px;
+}
+
+.howto-pieces > li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: rgba(20, 12, 6, 0.45);
+  border: 1px solid rgba(224, 164, 90, 0.14);
+}
+
+.howto-thumb {
+  flex: 0 0 auto;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}
+
+.howto-pieces strong {
+  display: block;
+  font-size: 0.88rem;
+  color: var(--ink);
+}
+
+.howto-pieces span {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.79rem;
+  line-height: 1.45;
+  color: var(--ink-dim);
+}
+
+.howto-sizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 12px !important;
+}
+
+.howto-sizes span {
+  min-width: 30px;
+  padding: 5px 7px;
+  text-align: center;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid transparent;
+}
+
+.howto-sizes .ok {
+  background: rgba(184, 130, 60, 0.26);
+  border-color: rgba(224, 164, 90, 0.4);
+  color: var(--ink);
+}
+
+.howto-sizes .dead {
+  background: rgba(20, 12, 6, 0.5);
+  border-color: rgba(189, 164, 134, 0.16);
+  color: rgba(189, 164, 134, 0.55);
+  text-decoration: line-through;
+}
+
+.howto-close {
+  margin: 26px 0 0;
+  padding-top: 18px;
+  border-top: 1px dashed rgba(224, 164, 90, 0.18);
+  max-width: 72ch;
+  font-size: 0.9rem;
+  line-height: 1.62;
+  color: var(--ink-dim);
+}
+
+@media (max-width: 620px) {
+  .howto {
+    padding: 20px 16px 22px;
+  }
+
+  .howto-steps > li {
+    gap: 12px;
+  }
+
+  .howto-num {
+    flex-basis: 28px;
+    height: 28px;
+    font-size: 0.88rem;
+  }
+}

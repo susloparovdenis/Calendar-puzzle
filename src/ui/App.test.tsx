@@ -132,9 +132,10 @@ describe('App', () => {
   });
 
   it('counts the tilings it has found so far', async () => {
-    render(<App />);
+    const { container } = render(<App />);
     await waitFor(() => {
-      expect(screen.getByText(/из\s/).textContent ?? '').toMatch(/\d/);
+      const readout = container.querySelector('.solution-count');
+      expect(readout?.textContent ?? '').toMatch(/^\d[\d\s\u00a0]*из [\d\s\u00a0]+\+?$/u);
     });
   });
 });
