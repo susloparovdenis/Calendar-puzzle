@@ -9,6 +9,15 @@
 надписи, накладка с воздушным шаром в правом верхнем углу и девиз
 «НОВЫЙ ДЕНЬ. НОВЫЕ ВОЗМОЖНОСТИ!» внизу слева.
 
+**Живая версия:** https://susloparovdenis.github.io/Calendar-puzzle/
+
+## Публикация
+
+Сборка выкладывается на GitHub Pages через Actions
+(`.github/workflows/deploy-pages.yml`): каждый пуш в ветку по умолчанию
+прогоняет тесты, собирает `dist/` и публикует его. Один раз нужно включить
+Pages вручную: **Settings → Pages → Source → GitHub Actions**.
+
 ## Запуск
 
 ```bash
