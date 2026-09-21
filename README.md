@@ -15,8 +15,9 @@
 
 Сборка выкладывается на GitHub Pages через Actions
 (`.github/workflows/deploy-pages.yml`): каждый пуш в ветку по умолчанию
-прогоняет тесты, собирает `dist/` и публикует его. Один раз нужно включить
-Pages вручную: **Settings → Pages → Source → GitHub Actions**.
+прогоняет тесты, собирает `dist/` и публикует его. Сам Pages включается
+первым же запуском (`configure-pages` с `enablement: true`), так что
+заходить в настройки репозитория не нужно.
 
 ## Запуск
 
