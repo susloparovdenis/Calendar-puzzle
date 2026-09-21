@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'preact/hooks';
-import { MONTH_NAMES, WEEKDAY_NAMES, type Month } from '../core/board.ts';
+import type { Month } from '../core/board.ts';
 import { monthSolutionCounts, summarise, type DayCount } from '../core/solutionCounts.ts';
+import { useI18n } from '../i18n/context.tsx';
+import type { Dictionary } from '../i18n/dictionary.ts';
 
 /**
  * How many tilings each day of a month admits.
@@ -34,8 +36,6 @@ export function ticksFor(maximum: number): readonly number[] {
   return ticks;
 }
 
-const ru = (value: number): string => value.toLocaleString('ru-RU');
-
 function shiftMonth(year: number, month: Month, delta: number): { year: number; month: Month } {
   const zeroBased = (month - 1) + delta;
   return {
@@ -45,6 +45,7 @@ function shiftMonth(year: number, month: Month, delta: number): { year: number; 
 }
 
 export function SolutionChart(props: SolutionChartProps): preact.JSX.Element {
+  const { d, n } = useI18n();
   const { year, month, day } = props;
   const [hovered, setHovered] = useState<number | null>(null);
 
@@ -63,29 +64,29 @@ export function SolutionChart(props: SolutionChartProps): preact.JSX.Element {
     props.onPickDate(next.year, next.month, Math.min(day, lastDay));
   };
 
-  const monthName = MONTH_NAMES[month - 1] ?? '';
+  const monthName = d.monthNames[month - 1] ?? '';
 
   return (
     <section class="chart-card" aria-labelledby="chart-title">
       <header class="chart-head">
         <div class="chart-titles">
-          <h2 id="chart-title">Сколько решений у каждого дня</h2>
+          <h2 id="chart-title">{d.chart.title}</h2>
           <p class="chart-sub">
-            {`${monthName} ${year} · всего ${ru(total)} ${total === 1 ? 'раскладка' : 'раскладок'}`}
+            {d.chart.subtitle(monthName, year, `${n(total)} ${d.tilingsWord(total)}`)}
           </p>
         </div>
 
-        <div class="chart-nav" role="group" aria-label="Перемотка по месяцам">
-          <button type="button" onClick={() => go(-12)} aria-label="На год назад" title="На год назад">
+        <div class="chart-nav" role="group" aria-label={d.chart.navAria}>
+          <button type="button" onClick={() => go(-12)} aria-label={d.chart.yearBack} title={d.chart.yearBack}>
             «
           </button>
-          <button type="button" onClick={() => go(-1)} aria-label="Предыдущий месяц">
+          <button type="button" onClick={() => go(-1)} aria-label={d.chart.monthBack}>
             ‹
           </button>
-          <button type="button" onClick={() => go(1)} aria-label="Следующий месяц">
+          <button type="button" onClick={() => go(1)} aria-label={d.chart.monthForward}>
             ›
           </button>
-          <button type="button" onClick={() => go(12)} aria-label="На год вперёд" title="На год вперёд">
+          <button type="button" onClick={() => go(12)} aria-label={d.chart.yearForward} title={d.chart.yearForward}>
             »
           </button>
         </div>
@@ -93,11 +94,14 @@ export function SolutionChart(props: SolutionChartProps): preact.JSX.Element {
 
       <p class="chart-readout" aria-live="polite">
         {active === null ? (
-          <span class="chart-readout-empty">Наведите на столбец</span>
+          <span class="chart-readout-empty">{d.chart.hoverHint}</span>
         ) : (
           <>
-            <strong>{ru(active.count)}</strong>
-            <span>{`${plural(active.count)} · ${active.day} ${genitive(month)}, ${(WEEKDAY_NAMES[active.weekday - 1] ?? '').toLowerCase()}`}</span>
+            <strong>{n(active.count)}</strong>
+            <span>
+              {`${d.solutionsWord(active.count)} · ${d.dayWithMonth(active.day, month)}, ` +
+                `${weekdayWord(active.weekday, d)}`}
+            </span>
           </>
         )}
       </p>
@@ -106,7 +110,7 @@ export function SolutionChart(props: SolutionChartProps): preact.JSX.Element {
         <div class="chart-yaxis" aria-hidden="true">
           {[...ticks].reverse().map((value) => (
             <span key={value} style={{ bottom: `${(value / top) * 100}%` }}>
-              {ru(value)}
+              {n(value)}
             </span>
           ))}
         </div>
@@ -129,7 +133,7 @@ export function SolutionChart(props: SolutionChartProps): preact.JSX.Element {
                 labelled={entry.day === day || (entry.day === max?.day && entry.day !== day)}
                 onHover={setHovered}
                 onPick={() => props.onPickDate(year, month, entry.day)}
-                monthName={genitive(month)}
+                month={month}
               />
             ))}
           </ol>
@@ -137,26 +141,29 @@ export function SolutionChart(props: SolutionChartProps): preact.JSX.Element {
       </div>
 
       <p class="chart-footnote">
-        Столбец — число раскладок для этой даты. Самый щедрый день: {max?.day ?? '—'}{' '}
-        {genitive(month)} ({ru(max?.count ?? 0)}); самый скупой: {min?.day ?? '—'}{' '}
-        {genitive(month)} ({ru(min?.count ?? 0)}).
+        {d.chart.footnote({
+          maxDay: max === null ? '—' : d.dayWithMonth(max.day, month),
+          maxCount: n(max?.count ?? 0),
+          minDay: min === null ? '—' : d.dayWithMonth(min.day, month),
+          minCount: n(min?.count ?? 0),
+        })}
       </p>
 
       <table class="visually-hidden">
-        <caption>{`Число решений по дням, ${monthName} ${year}`}</caption>
+        <caption>{d.chart.tableCaption(monthName, year)}</caption>
         <thead>
           <tr>
-            <th scope="col">Число</th>
-            <th scope="col">День недели</th>
-            <th scope="col">Решений</th>
+            <th scope="col">{d.chart.colDay}</th>
+            <th scope="col">{d.chart.colWeekday}</th>
+            <th scope="col">{d.chart.colSolutions}</th>
           </tr>
         </thead>
         <tbody>
           {counts.map((entry) => (
             <tr key={entry.day}>
               <th scope="row">{entry.day}</th>
-              <td>{WEEKDAY_NAMES[entry.weekday - 1] ?? ''}</td>
-              <td>{ru(entry.count)}</td>
+              <td>{d.weekdayNames[entry.weekday - 1] ?? ''}</td>
+              <td>{n(entry.count)}</td>
             </tr>
           ))}
         </tbody>
@@ -171,7 +178,7 @@ function Band({
   selected,
   hovered,
   labelled,
-  monthName,
+  month,
   onHover,
   onPick,
 }: {
@@ -180,10 +187,13 @@ function Band({
   readonly selected: boolean;
   readonly hovered: boolean;
   readonly labelled: boolean;
-  readonly monthName: string;
+  readonly month: Month;
   readonly onHover: (day: number | null) => void;
   readonly onPick: () => void;
 }): preact.JSX.Element {
+  const { d, n } = useI18n();
+  const date = d.dayWithMonth(entry.day, month);
+  const weekday = weekdayWord(entry.weekday, d);
   const height = `${Math.max((entry.count / top) * 100, entry.count > 0 ? 1.5 : 0)}%`;
   const classes = ['chart-band', selected ? 'is-selected' : '', hovered ? 'is-hovered' : '']
     .filter((name) => name !== '')
@@ -193,7 +203,7 @@ function Band({
     <li class={classes}>
       <button
         type="button"
-        aria-label={`${entry.day} ${monthName}, ${(WEEKDAY_NAMES[entry.weekday - 1] ?? '').toLowerCase()}: ${ru(entry.count)} ${plural(entry.count)}`}
+        aria-label={`${date}, ${weekday}: ${n(entry.count)} ${d.solutionsWord(entry.count)}`}
         aria-pressed={selected}
         onMouseEnter={() => onHover(entry.day)}
         onMouseLeave={() => onHover(null)}
@@ -202,15 +212,15 @@ function Band({
         onClick={onPick}
       >
         <span class="chart-bar" style={{ height }}>
-          {labelled ? <span class="chart-value">{ru(entry.count)}</span> : null}
+          {labelled ? <span class="chart-value">{n(entry.count)}</span> : null}
         </span>
         <span class="chart-tick">{entry.day % 5 === 0 || entry.day === 1 ? entry.day : ''}</span>
       </button>
       {hovered ? (
         <span class="chart-tip" role="presentation">
-          <strong>{ru(entry.count)}</strong>
+          <strong>{n(entry.count)}</strong>
           <span>
-            {entry.day} {monthName}, {(WEEKDAY_NAMES[entry.weekday - 1] ?? '').toLowerCase()}
+            {date}, {weekday}
           </span>
         </span>
       ) : null}
@@ -218,21 +228,8 @@ function Band({
   );
 }
 
-/** «решение / решения / решений», picked by Russian plural rules. */
-export function plural(count: number): string {
-  const mod100 = Math.abs(count) % 100;
-  const mod10 = mod100 % 10;
-  if (mod100 >= 11 && mod100 <= 14) return 'решений';
-  if (mod10 === 1) return 'решение';
-  if (mod10 >= 2 && mod10 <= 4) return 'решения';
-  return 'решений';
-}
-
-const GENITIVE: readonly string[] = [
-  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
-];
-
-export function genitive(month: Month): string {
-  return GENITIVE[month - 1] ?? '';
+/** The weekday, lowercased where the language writes it that way. */
+function weekdayWord(weekday: number, d: Dictionary): string {
+  const name = d.weekdayNames[weekday - 1] ?? '';
+  return d.locale.startsWith('en') ? name : name.toLowerCase();
 }

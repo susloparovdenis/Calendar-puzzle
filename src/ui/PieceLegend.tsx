@@ -1,13 +1,15 @@
 import { PIECES } from '../core/pieces.ts';
+import { useI18n } from '../i18n/context.tsx';
 import { pathForShape, shapeExtent } from './layout.ts';
 
 const UNIT = 18;
 
 /** Thumbnails of the ten wooden pieces, at the size ratio of the real set. */
 export function PieceLegend(): preact.JSX.Element {
+  const { d } = useI18n();
   return (
-    <section class="legend" aria-label="Фигуры набора">
-      <h2>Десять фигур</h2>
+    <section class="legend" aria-label={d.legend.aria}>
+      <h2>{d.legend.heading}</h2>
       <ul>
         {PIECES.map((piece) => {
           const { rows, cols } = shapeExtent(piece.shape);
@@ -27,7 +29,7 @@ export function PieceLegend(): preact.JSX.Element {
                   stroke-width={1.4}
                 />
               </svg>
-              <span class="legend-name">{piece.name}</span>
+              <span class="legend-name">{d.pieceNames[piece.id]}</span>
               <span class="legend-size">{piece.shape.length}</span>
             </li>
           );

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
-import { MONTH_NAMES, WEEKDAY_NAMES, type Month } from '../core/board.ts';
+import type { Month } from '../core/board.ts';
 import { clampDay, daysInMonth, isMonth, puzzleDateFor, type PuzzleDate } from '../core/date.ts';
 import { targetCells } from '../core/solver.ts';
+import { useI18n } from '../i18n/context.tsx';
 import { BoardView } from './BoardView.tsx';
 import { Controls } from './Controls.tsx';
 import { HowToSolve } from './HowToSolve.tsx';
+import { LanguageSwitch } from './LanguageSwitch.tsx';
 import { PieceLegend } from './PieceLegend.tsx';
 import { SolutionChart } from './SolutionChart.tsx';
 import { MAX_SOLUTIONS, useSolutions } from './useSolutions.ts';
@@ -26,6 +28,7 @@ function today(): Selection {
 }
 
 export function App(): preact.JSX.Element {
+  const { d } = useI18n();
   const [selection, setSelection] = useState<Selection>(today);
   const [variant, setVariant] = useState(0);
   const [showPieces, setShowPieces] = useState(true);
@@ -75,11 +78,9 @@ export function App(): preact.JSX.Element {
   return (
     <div class="app">
       <header class="masthead">
-        <h1>Календарь&#8209;пазл</h1>
-        <p>
-          Выберите дату — и десять деревянных фигур сложатся так, чтобы открытыми остались
-          только месяц, число и день недели.
-        </p>
+        <LanguageSwitch />
+        <h1>{d.app.title}</h1>
+        <p>{d.app.tagline}</p>
       </header>
 
       <main>
@@ -97,7 +98,7 @@ export function App(): preact.JSX.Element {
             onPickMonth={pickMonth}
             onPickDay={pickDay}
           />
-          <p class="board-hint">Месяц и число можно выбрать прямо на доске</p>
+          <p class="board-hint">{d.app.boardHint}</p>
         </div>
 
           <aside class="sidebar">
@@ -112,37 +113,37 @@ export function App(): preact.JSX.Element {
           />
 
           <section class="answer-card" aria-live="polite">
-            <h2>Открытые клетки</h2>
+            <h2>{d.answer.heading}</h2>
             <ul>
               <li>
-                <span>Месяц</span>
-                <strong>{MONTH_NAMES[date.month - 1] ?? '—'}</strong>
+                <span>{d.answer.month}</span>
+                <strong>{d.monthNames[date.month - 1] ?? '—'}</strong>
               </li>
               <li>
-                <span>Число</span>
+                <span>{d.answer.day}</span>
                 <strong>{date.day}</strong>
               </li>
               <li>
-                <span>День недели</span>
-                <strong>{WEEKDAY_NAMES[date.weekday - 1] ?? '—'}</strong>
+                <span>{d.answer.weekday}</span>
+                <strong>{d.weekdayNames[date.weekday - 1] ?? '—'}</strong>
               </li>
             </ul>
           </section>
 
           <section class="solutions-card" aria-live="polite">
-            <h2>Решение</h2>
+            <h2>{d.solutions.heading}</h2>
             {error !== null ? (
               <p class="error">{error}</p>
             ) : solution === null ? (
-              <p class="muted">Решение не найдено.</p>
+              <p class="muted">{d.solutions.none}</p>
             ) : (
               <>
                 <p class="solution-count">
                   <strong>{index + 1}</strong>
                   <span>
                     {total !== null
-                      ? ` из ${total.toLocaleString('ru-RU')}`
-                      : ` из ${list.length.toLocaleString('ru-RU')}+`}
+                      ? d.solutions.outOf(total, true)
+                      : d.solutions.outOf(list.length, false)}
                   </span>
                 </p>
                 <div class="solution-nav">
@@ -152,7 +153,7 @@ export function App(): preact.JSX.Element {
                     disabled={index === 0}
                     onClick={() => setVariant(index - 1)}
                   >
-                    ← Назад
+                    {d.solutions.back}
                   </button>
                   <button
                     type="button"
@@ -160,7 +161,7 @@ export function App(): preact.JSX.Element {
                     disabled={index >= list.length - 1}
                     onClick={() => setVariant(index + 1)}
                   >
-                    Вперёд →
+                    {d.solutions.forward}
                   </button>
                   <button
                     type="button"
@@ -168,7 +169,7 @@ export function App(): preact.JSX.Element {
                     disabled={list.length < 2}
                     onClick={() => setVariant(randomOther(list.length, index))}
                   >
-                    Случайное
+                    {d.solutions.random}
                   </button>
                 </div>
                 <div class="toggles">
@@ -180,7 +181,7 @@ export function App(): preact.JSX.Element {
                         setShowPieces((event.currentTarget as HTMLInputElement).checked)
                       }
                     />
-                    <span>Показывать фигуры</span>
+                    <span>{d.solutions.showPieces}</span>
                   </label>
                   <label class="toggle">
                     <input
@@ -191,15 +192,11 @@ export function App(): preact.JSX.Element {
                         setShowLabels((event.currentTarget as HTMLInputElement).checked)
                       }
                     />
-                    <span>Надписи сквозь фигуры</span>
+                    <span>{d.solutions.showLabels}</span>
                   </label>
                 </div>
-                {enumerating ? <p class="muted">Ищем остальные варианты…</p> : null}
-                {reachedCap ? (
-                  <p class="muted">
-                    Показаны первые {MAX_SOLUTIONS.toLocaleString('ru-RU')} вариантов.
-                  </p>
-                ) : null}
+                {enumerating ? <p class="muted">{d.solutions.searching}</p> : null}
+                {reachedCap ? <p class="muted">{d.solutions.capped(MAX_SOLUTIONS)}</p> : null}
               </>
             )}
           </section>
@@ -219,10 +216,7 @@ export function App(): preact.JSX.Element {
       </main>
 
       <footer class="colophon">
-        <p>
-          Доска 7×8: шесть клеток закрыты накладками, остаётся 50. Десять фигур занимают 47 —
-          ровно столько, чтобы три клетки ответа остались открытыми.
-        </p>
+        <p>{d.app.colophon}</p>
       </footer>
     </div>
   );

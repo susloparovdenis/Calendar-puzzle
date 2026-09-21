@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/preact';
-import { SolutionChart, genitive, plural, ticksFor } from './SolutionChart.tsx';
+import { SolutionChart, ticksFor } from './SolutionChart.tsx';
+import { RU } from '../i18n/ru.ts';
 import { monthSolutionCounts, summarise } from '../core/solutionCounts.ts';
 import type { Month } from '../core/board.ts';
 
@@ -185,28 +186,28 @@ describe('SolutionChart', () => {
 
 describe('Russian plural of «решение»', () => {
   it('follows the 1 / 2-4 / rest rule', () => {
-    expect(plural(1)).toBe('решение');
-    expect(plural(21)).toBe('решение');
-    expect(plural(2)).toBe('решения');
-    expect(plural(34)).toBe('решения');
-    expect(plural(5)).toBe('решений');
-    expect(plural(100)).toBe('решений');
+    expect(RU.solutionsWord(1)).toBe('решение');
+    expect(RU.solutionsWord(21)).toBe('решение');
+    expect(RU.solutionsWord(2)).toBe('решения');
+    expect(RU.solutionsWord(34)).toBe('решения');
+    expect(RU.solutionsWord(5)).toBe('решений');
+    expect(RU.solutionsWord(100)).toBe('решений');
   });
 
   it('handles the 11–14 exception', () => {
-    expect(plural(11)).toBe('решений');
-    expect(plural(12)).toBe('решений');
-    expect(plural(14)).toBe('решений');
-    expect(plural(111)).toBe('решений');
-    expect(plural(1011)).toBe('решений');
+    expect(RU.solutionsWord(11)).toBe('решений');
+    expect(RU.solutionsWord(12)).toBe('решений');
+    expect(RU.solutionsWord(14)).toBe('решений');
+    expect(RU.solutionsWord(111)).toBe('решений');
+    expect(RU.solutionsWord(1011)).toBe('решений');
   });
 });
 
 describe('genitive month names', () => {
   it('reads as a date would', () => {
-    expect(genitive(1)).toBe('января');
-    expect(genitive(5)).toBe('мая');
-    expect(genitive(12)).toBe('декабря');
+    expect(RU.dayWithMonth(1, 1)).toBe('1 января');
+    expect(RU.dayWithMonth(9, 5)).toBe('9 мая');
+    expect(RU.dayWithMonth(31, 12)).toBe('31 декабря');
   });
 });
 

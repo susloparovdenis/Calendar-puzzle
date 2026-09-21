@@ -4,14 +4,16 @@ import { cleanup, render, screen } from '@testing-library/preact';
 import { HowToSolve } from './HowToSolve.tsx';
 import { PIECES } from '../core/pieces.ts';
 import { PLACEMENT_COUNT } from '../core/solver.ts';
+import { RU } from '../i18n/ru.ts';
 
 afterEach(cleanup);
 
 describe('HowToSolve', () => {
   it('quotes the placement count from the solver, not a hardcoded number', () => {
     const { container } = render(<HowToSolve />);
+    // Grouped the way the language writes it: "1 466", not "1466".
     expect(container.querySelector('.howto-head p')?.textContent).toContain(
-      String(PLACEMENT_COUNT),
+      PLACEMENT_COUNT.toLocaleString(RU.locale),
     );
   });
 

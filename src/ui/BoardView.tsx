@@ -1,12 +1,8 @@
-import {
-  MONTH_NAMES,
-  MOTTO_LINES,
-  PLAYABLE_CELLS,
-  type BoardCell,
-  type Month,
-} from '../core/board.ts';
-import { pieceById, type PieceId } from '../core/pieces.ts';
+import { PLAYABLE_CELLS, type BoardCell, type Month } from '../core/board.ts';
+import { pieceById } from '../core/pieces.ts';
 import type { Solution } from '../core/solver.ts';
+import { useI18n } from '../i18n/context.tsx';
+import { cellLabel, type Dictionary } from '../i18n/dictionary.ts';
 import { Balloon } from './Balloon.tsx';
 import { WoodDefs } from './WoodDefs.tsx';
 import {
@@ -46,6 +42,7 @@ export interface BoardViewProps {
 }
 
 export function BoardView(props: BoardViewProps): preact.JSX.Element {
+  const { d } = useI18n();
   const answer = new Set(props.answerCells);
   const piecesVisible = props.showPieces && props.solution !== null;
   const covered = new Set(
@@ -63,7 +60,7 @@ export function BoardView(props: BoardViewProps): preact.JSX.Element {
       class="board"
       viewBox={`0 0 ${BOARD_WIDTH} ${BOARD_HEIGHT}`}
       role="img"
-      aria-label="Деревянный календарь-пазл"
+      aria-label={d.app.boardAria}
     >
       <WoodDefs />
 
@@ -142,7 +139,7 @@ export function BoardView(props: BoardViewProps): preact.JSX.Element {
         transform={`translate(${FRAME + 200} ${FRAME + y(7) + 40})`}
         filter="url(#engraved-light)"
       >
-        {MOTTO_LINES.map((line, index) => (
+        {d.mottoLines.map((line, index) => (
           <text key={line} x={0} y={index * 36} text-anchor="middle" fill="#e3bd87">
             {line}
           </text>
@@ -171,6 +168,7 @@ function Engravings({
   readonly variant: 'panel' | 'ghost';
   readonly faded: ReadonlySet<number>;
 }): preact.JSX.Element {
+  const { d } = useI18n();
   const ghost = variant === 'ghost';
   const baseOpacity = ghost ? 0.3 : 1;
   return (
@@ -179,7 +177,9 @@ function Engravings({
       filter={ghost ? undefined : 'url(#engraved)'}
       pointer-events="none"
     >
-      {cells.map((cell) => (
+      {cells.map((cell) => {
+        const label = cellLabel(cell, d);
+        return (
         <text
           key={cell.index}
           class={`engraving-${cell.kind} ${faded.has(cell.index) ? 'engraving-faded' : ''}`}
@@ -190,12 +190,13 @@ function Engravings({
           fill={ghost ? '#42230b' : '#7b4c22'}
           fill-opacity={faded.has(cell.index) ? baseOpacity * 0.35 : baseOpacity}
           // Long labels are squeezed to the cell so they fit whatever font loads.
-          textLength={cell.label.length >= 3 ? LABEL_WIDTH : undefined}
-          lengthAdjust={cell.label.length >= 3 ? 'spacingAndGlyphs' : undefined}
+          textLength={label.length >= 3 ? LABEL_WIDTH : undefined}
+          lengthAdjust={label.length >= 3 ? 'spacingAndGlyphs' : undefined}
         >
-          {cell.label}
+          {label}
         </text>
-      ))}
+        );
+      })}
     </g>
   );
 }
@@ -231,6 +232,7 @@ function PieceShape({
   readonly placed: Solution[number];
   readonly order: number;
 }): preact.JSX.Element {
+  const { d } = useI18n();
   const piece = pieceById(placed.pieceId);
   const path = pathForCells(placed.cells);
   return (
@@ -250,13 +252,9 @@ function PieceShape({
         transform="translate(0 -1.5)"
         clip-path="none"
       />
-      <title>{`${piece.name} (${pieceLabel(placed.pieceId)})`}</title>
+      <title>{`${d.pieceNames[piece.id]} (${d.cellsWord(piece.shape.length)})`}</title>
     </g>
   );
-}
-
-function pieceLabel(id: PieceId): string {
-  return `${pieceById(id).shape.length} клеток`;
 }
 
 function HitAreas({
@@ -273,6 +271,7 @@ function HitAreas({
   readonly onPickMonth: (month: Month) => void;
   readonly onPickDay: (day: number) => void;
 }): preact.JSX.Element {
+  const { d } = useI18n();
   return (
     <g class="hit-areas">
       {PLAYABLE_CELLS.map((cell) => {
@@ -294,7 +293,7 @@ function HitAreas({
             rx={12}
             tabIndex={disabled ? undefined : 0}
             role={disabled ? undefined : 'button'}
-            aria-label={disabled ? undefined : ariaLabel(cell)}
+            aria-label={disabled ? undefined : ariaLabel(cell, d)}
             onClick={disabled ? undefined : () => activate(cell, onPickMonth, onPickDay)}
             onKeyDown={
               disabled
@@ -307,7 +306,7 @@ function HitAreas({
                   }
             }
           >
-            {disabled ? <title>{disabledReason(cell, month)}</title> : null}
+            {disabled ? <title>{disabledReason(cell, month, d)}</title> : null}
           </rect>
         );
       })}
@@ -315,9 +314,9 @@ function HitAreas({
   );
 }
 
-function disabledReason(cell: BoardCell, month: Month): string {
-  if (cell.kind === 'weekday') return `${cell.label} — определяется датой`;
-  return `В месяце «${MONTH_NAMES[month - 1] ?? ''}» нет такого числа`;
+function disabledReason(cell: BoardCell, month: Month, d: Dictionary): string {
+  if (cell.kind === 'weekday') return d.board.weekdayFixed(cellLabel(cell, d));
+  return d.board.dayMissing(d.monthNames[month - 1] ?? '');
 }
 
 function isSelected(cell: BoardCell, month: Month, day: number): boolean {
@@ -326,8 +325,9 @@ function isSelected(cell: BoardCell, month: Month, day: number): boolean {
   return false;
 }
 
-function ariaLabel(cell: BoardCell): string {
-  return cell.kind === 'month' ? `Месяц ${cell.label}` : `Число ${cell.label}`;
+function ariaLabel(cell: BoardCell, d: Dictionary): string {
+  const label = cellLabel(cell, d);
+  return cell.kind === 'month' ? d.board.monthAria(label) : d.board.dayAria(label);
 }
 
 function activate(

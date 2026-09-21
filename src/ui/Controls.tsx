@@ -1,10 +1,6 @@
-import {
-  MONTH_NAMES,
-  WEEKDAY_NAMES,
-  type Month,
-  type Weekday,
-} from '../core/board.ts';
+import type { Month, Weekday } from '../core/board.ts';
 import { daysInMonth, isMonth } from '../core/date.ts';
+import { useI18n } from '../i18n/context.tsx';
 
 export interface ControlsProps {
   readonly year: number;
@@ -17,6 +13,7 @@ export interface ControlsProps {
 }
 
 export function Controls(props: ControlsProps): preact.JSX.Element {
+  const { d } = useI18n();
   const { year, month, day, weekday } = props;
   const lastDay = daysInMonth(year, month);
 
@@ -28,12 +25,12 @@ export function Controls(props: ControlsProps): preact.JSX.Element {
   };
 
   return (
-    <section class="controls" aria-label="Выбор даты">
+    <section class="controls" aria-label={d.controls.aria}>
       <div class="control-row">
         <div class="field field-year">
-          <span class="field-label" id="year-label" aria-hidden="true">Год</span>
+          <span class="field-label" id="year-label" aria-hidden="true">{d.controls.year}</span>
           <div class="stepper">
-            <button type="button" aria-label="Предыдущий год" onClick={() => setYear(year - 1)}>
+            <button type="button" aria-label={d.controls.prevYear} onClick={() => setYear(year - 1)}>
               −
             </button>
             <input
@@ -41,20 +38,20 @@ export function Controls(props: ControlsProps): preact.JSX.Element {
               value={year}
               min={1900}
               max={2999}
-              aria-label="Год"
+              aria-label={d.controls.year}
               onInput={(event) => {
                 const value = Number((event.currentTarget as HTMLInputElement).value);
                 if (Number.isInteger(value) && value >= 1900 && value <= 2999) setYear(value);
               }}
             />
-            <button type="button" aria-label="Следующий год" onClick={() => setYear(year + 1)}>
+            <button type="button" aria-label={d.controls.nextYear} onClick={() => setYear(year + 1)}>
               +
             </button>
           </div>
         </div>
 
         <label class="field field-month">
-          <span class="field-label">Месяц</span>
+          <span class="field-label">{d.controls.month}</span>
           <select
             value={String(month)}
             onChange={(event) => {
@@ -62,7 +59,7 @@ export function Controls(props: ControlsProps): preact.JSX.Element {
               if (isMonth(value)) setMonth(value);
             }}
           >
-            {MONTH_NAMES.map((name, index) => (
+            {d.monthNames.map((name, index) => (
               <option key={name} value={String(index + 1)}>
                 {name}
               </option>
@@ -71,7 +68,7 @@ export function Controls(props: ControlsProps): preact.JSX.Element {
         </label>
 
         <label class="field field-day">
-          <span class="field-label">Число</span>
+          <span class="field-label">{d.controls.day}</span>
           <select
             value={String(day)}
             onChange={(event) => {
@@ -90,19 +87,19 @@ export function Controls(props: ControlsProps): preact.JSX.Element {
 
       <div class="control-row control-row-actions">
         <button type="button" class="ghost" onClick={() => props.onStepDay(-1)}>
-          ← Вчера
+          {d.controls.yesterday}
         </button>
         <button type="button" class="primary" onClick={props.onToday}>
-          Сегодня
+          {d.controls.today}
         </button>
         <button type="button" class="ghost" onClick={() => props.onStepDay(1)}>
-          Завтра →
+          {d.controls.tomorrow}
         </button>
       </div>
 
       <p class="weekday-chip">
-        <span>День недели</span>
-        <strong>{WEEKDAY_NAMES[weekday - 1] ?? '—'}</strong>
+        <span>{d.controls.weekday}</span>
+        <strong>{d.weekdayNames[weekday - 1] ?? '—'}</strong>
       </p>
     </section>
   );

@@ -57,6 +57,46 @@ body::before {
   margin-bottom: clamp(20px, 3vw, 38px);
 }
 
+/* The language sits above the title: a choice, not a setting buried in a menu. */
+.lang-switch {
+  display: inline-flex;
+  gap: 2px;
+  margin: 0 0 14px;
+  padding: 3px;
+  border: 1px solid rgba(217, 150, 71, 0.28);
+  border-radius: 999px;
+  background: rgba(26, 15, 6, 0.55);
+}
+
+.lang-switch button {
+  padding: 5px 15px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.lang-switch button:hover:not(.is-active) {
+  color: var(--ink);
+  background: rgba(217, 150, 71, 0.12);
+}
+
+.lang-switch button.is-active {
+  background: linear-gradient(180deg, #d99647, #b3701f);
+  color: #2a1608;
+  font-weight: 700;
+}
+
+.lang-switch button:focus-visible {
+  outline: 2px solid #ffd9a1;
+  outline-offset: 2px;
+}
+
 .masthead h1 {
   font-family: var(--font-display);
   font-weight: 700;
