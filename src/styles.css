@@ -173,26 +173,6 @@ body::before {
   }
 }
 
-.answers rect {
-  animation: answer-pulse 2.6s ease-in-out infinite;
-}
-
-@keyframes answer-pulse {
-  0%,
-  100% {
-    opacity: 0.85;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .answers rect {
-    animation: none;
-  }
-}
-
 /* ---------- board hit areas ---------- */
 
 .hit {
