@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { SearchLimitExceeded, solutions, type Solution } from '../core/solver.ts';
 import type { PuzzleDate } from '../core/date.ts';
+import { diverseOrder } from '../core/order.ts';
 
 /** Upper bound on how many tilings are kept in memory for one date. */
 export const MAX_SOLUTIONS = 20_000;
@@ -9,8 +10,14 @@ export const MAX_SOLUTIONS = 20_000;
 const FRAME_BUDGET_MS = 8;
 
 export interface SolutionsState {
-  /** Tilings found so far, in the solver's stable order. */
+  /**
+   * Tilings to browse. While the search runs this holds only the first one;
+   * once it is done, every tiling is here in a spread-out order (see
+   * `diverseOrder`), so neighbours never differ by just a corner reshuffle.
+   */
   readonly list: readonly Solution[];
+  /** How many tilings the search has found so far. */
+  readonly found: number;
   /** `true` while more tilings are still being enumerated in the background. */
   readonly enumerating: boolean;
   /** `true` once every tiling for this date has been found. */
@@ -18,7 +25,7 @@ export interface SolutionsState {
   readonly error: string | null;
 }
 
-const EMPTY: SolutionsState = { list: [], enumerating: false, complete: false, error: null };
+const EMPTY: SolutionsState = { list: [], found: 0, enumerating: false, complete: false, error: null };
 
 interface Scheduler {
   readonly schedule: (callback: () => void) => number;
@@ -43,7 +50,9 @@ const defaultScheduler: Scheduler =
  * Enumerates every tiling for a date without blocking the page.
  *
  * The first tiling is produced synchronously so the board never flashes empty;
- * the rest are pulled from the generator in short slices between frames.
+ * the rest are pulled from the generator in short slices between frames. The
+ * full list is handed over only at the end, reordered once, so indices the UI
+ * shows never shift under the user.
  */
 export function useSolutions(date: PuzzleDate, scheduler: Scheduler = defaultScheduler): SolutionsState {
   const [state, setState] = useState<SolutionsState>(EMPTY);
@@ -58,7 +67,9 @@ export function useSolutions(date: PuzzleDate, scheduler: Scheduler = defaultSch
     let cancelled = false;
 
     const publish = (enumerating: boolean, complete: boolean, error: string | null): void => {
-      if (!cancelled) setState({ list: [...found], enumerating, complete, error });
+      if (cancelled) return;
+      const list = enumerating ? found.slice(0, 1) : diverseOrder(found);
+      setState({ list, found: found.length, enumerating, complete, error });
     };
 
     const pump = (): void => {

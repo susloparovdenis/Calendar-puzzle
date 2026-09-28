@@ -36,7 +36,7 @@ export function App(): preact.JSX.Element {
     [selection.year, selection.month, selection.day],
   );
 
-  const { list, enumerating, complete, error } = useSolutions(date);
+  const { list, found, enumerating, complete, error } = useSolutions(date);
 
   // A new date restarts the enumeration, so go back to the first tiling.
   useEffect(() => {
@@ -70,7 +70,7 @@ export function App(): preact.JSX.Element {
   const pickDay = useCallback((day: number) => change({ ...selection, day }), [change, selection]);
 
   const total = complete ? list.length : null;
-  const reachedCap = !complete && !enumerating && list.length >= MAX_SOLUTIONS;
+  const reachedCap = !complete && !enumerating && found >= MAX_SOLUTIONS;
 
   return (
     <div class="app">
@@ -142,7 +142,7 @@ export function App(): preact.JSX.Element {
                   <span>
                     {total !== null
                       ? ` из ${total.toLocaleString('ru-RU')}`
-                      : ` из ${list.length.toLocaleString('ru-RU')}+`}
+                      : ` из ${found.toLocaleString('ru-RU')}+`}
                   </span>
                 </p>
                 <div class="solution-nav">

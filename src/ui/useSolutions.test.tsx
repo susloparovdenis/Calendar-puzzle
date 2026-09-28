@@ -4,6 +4,7 @@ import { act, cleanup, render } from '@testing-library/preact';
 import { MAX_SOLUTIONS, useSolutions, type SolutionsState } from './useSolutions.ts';
 import type { PuzzleDate } from '../core/date.ts';
 import { countSolutions, type Solution } from '../core/solver.ts';
+import { MIN_PIECES_MOVED, piecesMoved } from '../core/order.ts';
 
 afterEach(cleanup);
 
@@ -101,11 +102,37 @@ describe('useSolutions', () => {
     const scheduler = new ManualScheduler();
     scheduler.tickSize = 100; // every slice blows the 8ms budget immediately
     const { latest } = harness(date(9, 20, 7), scheduler);
-    const before = latest()?.list.length ?? 0;
+    const before = latest()?.found ?? 0;
     scheduler.flushOnce();
-    const after = latest()?.list.length ?? 0;
+    const after = latest()?.found ?? 0;
     expect(after).toBeGreaterThan(before);
     expect(latest()?.complete).toBe(false);
+  });
+
+  it('holds back the list until the search is done, so indices never shift', () => {
+    const scheduler = new ManualScheduler();
+    scheduler.tickSize = 100;
+    const { latest } = harness(date(9, 28, 1), scheduler);
+    const first = latest()?.list[0];
+    scheduler.flushOnce();
+    expect(latest()?.found).toBeGreaterThan(1);
+    expect(latest()?.list).toEqual([first]);
+    scheduler.flushAll();
+    expect(latest()?.list[0]).toBe(first);
+    expect(latest()?.list).toHaveLength(latest()?.found ?? -1);
+  });
+
+  it('never shows two look-alike tilings in a row (28 Sep 2026, Monday)', () => {
+    const scheduler = new ManualScheduler();
+    const { latest } = harness(date(9, 28, 1), scheduler);
+    scheduler.flushAll();
+    const list: readonly Solution[] = latest()?.list ?? [];
+    expect(list).toHaveLength(1496);
+    for (let i = 1; i < list.length; i += 1) {
+      const [previous, current] = [list[i - 1], list[i]];
+      if (previous === undefined || current === undefined) throw new Error('hole in list');
+      expect(piecesMoved(previous, current)).toBeGreaterThanOrEqual(MIN_PIECES_MOVED);
+    }
   });
 
   it('stops scheduling work once the component goes away', () => {

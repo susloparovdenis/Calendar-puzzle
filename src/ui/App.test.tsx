@@ -103,7 +103,10 @@ describe('App', () => {
     const first = shapes();
     expect(screen.getByText('← Назад').closest('button')).toBeDisabled();
 
-    await waitFor(() => expect(screen.getByText('Вперёд →').closest('button')).toBeEnabled());
+    // Browsing opens once every tiling is found and put in display order.
+    await waitFor(() => expect(screen.getByText('Вперёд →').closest('button')).toBeEnabled(), {
+      timeout: 15_000,
+    });
     fireEvent.click(screen.getByText('Вперёд →'));
     await waitFor(() => expect(shapes()).not.toBe(first));
     expect(screen.getByText('← Назад').closest('button')).toBeEnabled();
